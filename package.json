@@ -1,0 +1,54 @@
+{
+  "name": "@vickydecodes/decode",
+  "version": "0.0.2",
+  "description": "🧩 Decode — Vicky's all-in-one Developer Utility CLI. Scaffold projects, install packages, and automate your dev workflow.",
+  "bin": {
+    "decode": "./index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "link": "npm link",
+    "unlink": "npm unlink -g @vickydecodes/decode"
+  },
+  "author": {
+    "name": "Vicky",
+    "email": "vickydecodes@gmail.com",
+    "url": "https://github.com/vickydecodes"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vickydecodes/decode"
+  },
+  "homepage": "https://github.com/vickydecodes/decode#readme",
+  "bugs": {
+    "url": "https://github.com/vickydecodes/decode/issues"
+  },
+  "keywords": [
+    "cli",
+    "developer-tools",
+    "automation",
+    "vickydecodes",
+    "decode",
+    "nodejs",
+    "express",
+    "vite",
+    "scaffold"
+  ],
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.10"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "index.js",
+    "plugins/",
+    "README.md"
+  ]
+}
