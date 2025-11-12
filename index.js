@@ -48,7 +48,7 @@ async function main() {
     
 // Show banner only on the first command in a session
 if (!global.__DECODE_LOGGED__) {
-    console.log(chalk.magentaBright.bold(`\nDecode CLI v2.2.0 — Smart Dev CLI + Generator\n`));
+    console.log(chalk.magentaBright.bold(`\nDecode CLI v0.0.7 — Smart Dev CLI + Generator\n`));
     global.__DECODE_LOGGED__ = true;
 }
 
@@ -59,7 +59,7 @@ if (!global.__DECODE_LOGGED__) {
     try {
         // --- VERSION / HELP ---
         if (cmd === "-v" || cmd === "--version") {
-            console.log(chalk.bold("v2.2.0"));
+            console.log(chalk.bold("v0.0.7"));
             return;
         }
         if (cmd === "-h" || cmd === "--help") return help();
