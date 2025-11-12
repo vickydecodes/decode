@@ -1,6 +1,6 @@
 {
   "name": "@vickydecodes/decode",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "🧩 Decode — Vicky's all-in-one Developer Utility CLI. Scaffold projects, install packages, and automate your dev workflow.",
   "bin": {
     "decode": "./index.js"
