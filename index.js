@@ -1,21 +1,9 @@
 #!/usr/bin/env node
 /**
- * Decode CLI — Developer Utility + CLI Generator by Vicky 🚀
+ * Decode CLI v2.2.0 — Minimal + Smart CLI Generator
  *
- * Features:
- *  decode init <cli-name>  -> create your own CLI from this engine
- *  -p pkg1 pkg2...         -> npm install packages
- *  -frontend               -> run `npm create vite@latest`
- *  -backend [name]         -> scaffold express backend
- *  -folders -mcrs          -> create models/controllers/routes/services
- *  -files f1 f2 ...        -> create files
- *  -run                    -> choose and run npm script
- *  -go                     -> run npm run dev || npm start
- *  -plugin <name>          -> run plugin from ./plugins
- *  -open                   -> open in VS Code
- *  -term                   -> open terminal
- *  -info                   -> show folder info
- *  -dash                   -> dashboard placeholder
+ * Core: decode init <name> → your own global CLI
+ * Smart -folders: -mrcs (default) OR any custom names
  */
 
 import { spawnSync } from "child_process";
@@ -25,25 +13,41 @@ import inquirer from "inquirer";
 import chalk from "chalk";
 import { fileURLToPath } from "url";
 
-const args = process.argv.slice(2);
-const cwd = process.cwd();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const args = process.argv.slice(2);
+const cwd = process.cwd();
 
 const log = (s) => console.log(chalk.cyanBright(s));
-const warn = (s) => console.log(chalk.yellow(s));
-const err = (s) => console.log(chalk.red(s));
+const success = (s) => console.log(chalk.greenBright(`Success: ${s}`));
+const warn = (s) => console.log(chalk.yellow(`Warning: ${s}`));
+const err = (s) => console.log(chalk.red(`Error: ${s}`));
+
+let pkgManager = "npm";
+try {
+    if (fs.existsSync("pnpm-lock.yaml")) pkgManager = "pnpm";
+    else if (fs.existsSync("yarn.lock")) pkgManager = "yarn";
+} catch { }
 
 function runSync(cmd, opts = {}) {
-    const res = spawnSync(cmd, { stdio: "inherit", shell: true, ...opts });
+    const [command, ...cArgs] = cmd.split(" ");
+    const res = spawnSync(command, cArgs, {
+        stdio: "inherit",
+        shell: true,
+        cwd: opts.cwd || cwd,
+        ...opts,
+    });
     if (res.error) throw res.error;
     return res.status ?? 0;
 }
 
+/* -------------------------------------------------------------
+   MAIN
+   ------------------------------------------------------------- */
 async function main() {
     console.log(
         chalk.magentaBright.bold(
-            `\n🧩 Decode CLI — Vicky's Developer Utility (v1.0.0)\n`
+            `\nDecode CLI v2.2.0 — Smart Dev CLI + Generator\n`
         )
     );
 
@@ -51,267 +55,300 @@ async function main() {
 
     const cmd = args[0];
 
-    // 🧠 === INIT COMMAND ===
-    if (cmd === "init") {
-        const cliName = args[1];
-        if (!cliName) {
-            warn("Usage: decode init <cli-name>");
-            return;
-        }
-
-        const folder = `${cliName}-cli`;
-        if (fs.existsSync(folder)) {
-            err(`❌ Folder '${folder}' already exists.`);
-            return;
-        }
-
-        log(`🚀 Creating new CLI: ${cliName}`);
-        fs.mkdirSync(folder);
-
-        const pkg = {
-            name: cliName,
-            version: "1.0.0",
-            description: `${cliName} — custom CLI powered by Decode`,
-            bin: { [cliName]: "./index.js" },
-            type: "module",
-            dependencies: { chalk: "^5.3.0", inquirer: "^9.2.7" },
-        };
-
-        fs.writeFileSync(
-            path.join(folder, "package.json"),
-            JSON.stringify(pkg, null, 2)
-        );
-
-        // generate engine with custom CLI name
-        const engineCode = generateEngine(cliName);
-        fs.writeFileSync(path.join(folder, "index.js"), engineCode, "utf8");
-
-        log("📦 Installing dependencies...");
-        runSync("npm install", { cwd: folder });
-
-        log("🔗 Linking CLI globally...");
-        runSync("npm link", { cwd: folder });
-
-        console.log(chalk.greenBright(`✅ Done! You can now use:`));
-        console.log(chalk.bold(`   ${cliName} -info`));
-        return;
-    }
-
-    // ============ EXISTING DECODE COMMANDS =============
     try {
-        if (cmd === "-p") {
-            if (args.length < 2)
-                return warn("Usage: decode -p package1 package2 ...");
-            const pkgs = args.slice(1).join(" ");
-            log(`📦 Installing packages: ${pkgs}`);
-            runSync(`npm install ${pkgs}`);
-            log("✅ Packages installed.");
+        // --- VERSION / HELP ---
+        if (cmd === "-v" || cmd === "--version") {
+            console.log(chalk.bold("v2.2.0"));
+            return;
+        }
+        if (cmd === "-h" || cmd === "--help") return help();
+
+        // --- INIT: CREATE CUSTOM CLI ---
+        if (cmd === "init") {
+            const cliName = args[1];
+            if (!cliName) return warn("Usage: decode init <cli-name>");
+
+            const folder = `${cliName}-cli`;
+            if (fs.existsSync(folder)) return err(`Folder '${folder}' already exists.`);
+
+            log(`Creating custom CLI: ${cliName}`);
+            fs.mkdirSync(folder);
+
+            const pkg = {
+                name: cliName,
+                version: "1.0.0",
+                description: `${cliName} — powered by Decode`,
+                bin: { [cliName]: "./index.js" },
+                type: "module",
+                dependencies: { chalk: "^5.3.0" },
+            };
+            fs.writeFileSync(
+                path.join(folder, "package.json"),
+                JSON.stringify(pkg, null, 2)
+            );
+
+            const engine = generateEngine(cliName);
+            fs.writeFileSync(path.join(folder, "index.js"), engine, "utf8");
+
+            log("Installing chalk…");
+            runSync("npm install", { cwd: folder });
+
+            log("Linking globally…");
+            runSync("npm link", { cwd: folder });
+
+            success(`Done! Use:\n   ${chalk.bold(cliName)} -info`);
             return;
         }
 
+        // --- PACKAGE INSTALL ---
+        if (cmd === "-p") {
+            if (args.length < 2) return warn("Usage: decode -p pkg1 pkg2…");
+            const pkgs = args.slice(1).join(" ");
+            log(`Installing with ${pkgManager}: ${pkgs}`);
+            runSync(`${pkgManager} install ${pkgs}`);
+            success("Installed.");
+            return;
+        }
+
+        // --- FRONTEND ---
         if (cmd === "-frontend") {
-            log("🚀 Launching official Vite setup (npm create vite@latest)");
+            log("Launching Vite…");
             runSync("npm create vite@latest");
             return;
         }
 
+        // --- BACKEND ---
         if (cmd === "-backend") {
-            const projectName = args[1] || ".";
-            const target = projectName === "." ? cwd : path.join(cwd, projectName);
+            const name = args[1] || ".";
+            const target = name === "." ? cwd : path.join(cwd, name);
+            if (name !== "." && !fs.existsSync(target)) fs.mkdirSync(target, { recursive: true });
 
-            if (projectName !== "." && !fs.existsSync(target))
-                fs.mkdirSync(target, { recursive: true });
+            const src = path.join(target, "src");
+            fs.mkdirSync(src, { recursive: true });
 
-            log(`🧱 Creating backend scaffold in ${target}`);
-            const srcDir = path.join(target, "src");
-            if (!fs.existsSync(srcDir)) fs.mkdirSync(srcDir, { recursive: true });
+            const server = `import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+dotenv.config();
 
-            const serverJs = `import express from "express";
 const app = express();
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => res.json({ msg: "API ready" }));
+
 const PORT = process.env.PORT || 3000;
-app.get("/", (req, res) => res.send("API running 🚀"));
-app.listen(PORT, () => console.log("Server running on port", PORT));\n`;
+app.listen(PORT, () => console.log("Server on port", PORT));\n`;
 
-            fs.writeFileSync(path.join(srcDir, "server.js"), serverJs, "utf8");
-
-            log("⚙️ Initializing npm project...");
+            fs.writeFileSync(path.join(src, "server.js"), server);
             runSync(`cd "${target}" && npm init -y`);
-            log("📦 Installing express cors dotenv...");
-            runSync(`cd "${target}" && npm install express cors dotenv`);
-            log(`✅ Backend ready! cd "${target}" && decode -go`);
+            runSync(`cd "${target}" && ${pkgManager} install express cors dotenv`);
+            success(`Backend ready: ${target}`);
             return;
         }
 
-       if (cmd === "-folders") {
-    const map = {
-        m: "models",
-        c: "controllers",
-        r: "routes",
-        s: "services",
-    };
+        // --- FOLDERS: SMART MODE ---
+        if (cmd === "-folders") {
+            if (args.length < 2) {
+                // Default: -mrcs
+                args = ["-folders", "-mrcs"];
+            }
 
-    const arg = args[1] || "";
+            const arg = args[1];
+            const created = [];
 
-    if (!arg) {
-        warn("Usage: decode -folders -mcrs (or any combo, e.g. -mc, -rs)");
-        return;
-    }
+            if (arg.startsWith("-")) {
+                // --- Default MVC mode ---
+                const map = { m: "models", c: "controllers", r: "routes", s: "services" };
+                const flags = arg.replace("-", "").split("");
+                flags.forEach(f => {
+                    if (map[f]) {
+                        const dir = path.join(cwd, map[f]);
+                        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                        created.push(map[f]);
+                    }
+                });
+            } else {
+                // --- Custom folder names ---
+                args.slice(1).forEach(f => {
+                    const dir = path.join(cwd, f);
+                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                    created.push(f);
+                });
+            }
 
-    if (!arg.startsWith("-")) {
-        warn("Invalid flag. Try: decode -folders -mcrs");
-        return;
-    }
-
-    const flags = arg.replace("-", "").split("");
-    const created = [];
-
-    flags.forEach((f) => {
-        const folder = map[f];
-        if (folder) {
-            const p = path.join(cwd, folder);
-            if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
-            created.push(folder);
+            if (created.length) {
+                success(`Created folders: ${created.join(", ")}`);
+            } else {
+                warn("No folders created. Use -mrcs or custom names.");
+            }
+            return;
         }
-    });
 
-    if (created.length > 0) {
-        log(`📁 Created folders: ${created.join(", ")}`);
-    } else {
-        warn("⚠️ No valid flags provided. Use combinations like -mc or -mcrs.");
-    }
-
-    return;
-}
-
-
+        // --- FILES ---
         if (cmd === "-files") {
-            if (args.length < 2) return warn("Usage: decode -files f1 f2 ...");
-            args.slice(1).forEach((f) => {
+            if (args.length < 2) return warn("Usage: decode -files f1 f2…");
+            args.slice(1).forEach(f => {
                 const p = path.join(cwd, f);
-                if (!fs.existsSync(p)) fs.writeFileSync(p, "", "utf8");
-                log(`📝 Created file: ${f}`);
+                if (!fs.existsSync(p)) fs.writeFileSync(p, "");
+                log(`Created: ${f}`);
             });
             return;
         }
 
+        // --- RUN SCRIPT ---
         if (cmd === "-run") {
             const pkgPath = path.join(cwd, "package.json");
             if (!fs.existsSync(pkgPath)) return warn("No package.json found.");
             const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
             const scripts = Object.keys(pkg.scripts || {});
-            if (!scripts.length) return warn("No npm scripts found.");
+            if (!scripts.length) return warn("No scripts found.");
+
             const { script } = await inquirer.prompt({
                 type: "list",
                 name: "script",
-                message: "Choose script to run",
+                message: "Run:",
                 choices: scripts,
             });
-            runSync(`npm run ${script}`);
+            runSync(`${pkgManager} run ${script}`);
             return;
         }
 
+        // --- GO ---
         if (cmd === "-go") {
-            log("⚡ Running npm run dev || npm start");
+            log(`Starting with ${pkgManager}…`);
             try {
-                runSync("npm run dev");
+                runSync(`${pkgManager} run dev`);
             } catch {
-                runSync("npm start");
+                runSync(`${pkgManager} start`);
             }
             return;
         }
 
+        // --- PLUGIN ---
         if (cmd === "-plugin") {
-            if (!args[1]) return warn("Usage: decode -plugin <name>");
-            const pluginName = args[1];
-            const pluginPath = [
-                path.join(cwd, "plugins", `${pluginName}.js`),
-                path.join(__dirname, "plugins", `${pluginName}.js`),
-            ].find((p) => fs.existsSync(p));
-            if (!pluginPath) return warn(`Plugin not found: ${pluginName}`);
-            log(`🔌 Running plugin ${pluginName}`);
-            runSync(`node "${pluginPath}"`);
+            if (!args[1]) return warn("Usage: decode -plugin <name> [args…]");
+            const name = args[1];
+            const extra = args.slice(2);
+            const paths = [
+                path.join(cwd, "plugins", `${name}.js`),
+                path.join(__dirname, "plugins", `${name}.js`),
+            ];
+            const plugin = paths.find(p => fs.existsSync(p));
+            if (!plugin) return warn(`Plugin not found: ${name}`);
+            runSync(`node "${plugin}" ${extra.join(" ")}`);
             return;
         }
 
-        if (cmd === "-open") {
-            runSync("code .");
-            log("💻 VS Code opened.");
-            return;
-        }
-
+        // --- OPEN / TERM / INFO ---
+        if (cmd === "-open") { runSync("code ."); success("VS Code opened"); return; }
         if (cmd === "-term") {
             if (process.platform === "win32")
-                runSync(`start cmd.exe /K "cd /d ${cwd}"`);
+                runSync(`start cmd /K "cd /d ${cwd}"`);
             else if (process.platform === "darwin")
-                runSync(
-                    `osascript -e 'tell app "Terminal" to do script \"cd ${cwd}\"'`
-                );
+                runSync(`osascript -e 'tell app "Terminal" to do script "cd \\"${cwd}\\""'`);
             else
-                runSync(`bash -lc "gnome-terminal -- bash -c 'cd ${cwd}; exec bash'"`);
+                runSync(`gnome-terminal -- bash -c "cd '${cwd}'; exec bash"`);
             return;
         }
-
         if (cmd === "-info") {
-            log(`📂 Current Directory: ${cwd}`);
-            fs.readdirSync(cwd).forEach((i) => console.log("  - " + i));
+            log(`Dir: ${cwd}`);
+            fs.readdirSync(cwd).forEach(i => console.log(`  ├─ ${i}`));
             return;
         }
 
+        // --- GIT ---
+        if (cmd === "-git") {
+            if (fs.existsSync(".git")) return warn("Git already exists.");
+            runSync("git init");
+            fs.writeFileSync(".gitignore", "node_modules\n.env\ndist\n");
+            success("Git + .gitignore");
+            return;
+        }
+
+        // --- ENV ---
+        if (cmd === "-env") {
+            if (!fs.existsSync(".env")) fs.writeFileSync(".env", "PORT=3000\nNODE_ENV=development\n");
+            if (!fs.existsSync(".env.example")) fs.writeFileSync(".env.example", "PORT=3000\nNODE_ENV=development\n");
+            success(".env + .env.example");
+            return;
+        }
+
+        // --- DASH ---
         if (cmd === "-dash") {
-            log("🧭 Decode Dashboard placeholder — coming soon!");
+            log("Decode Dashboard — coming soon!");
             return;
         }
 
         help();
     } catch (e) {
-        err("Error: " + (e.message || e));
+        err(e.message || e);
+        process.exit(1);
     }
 }
 
+/* -------------------------------------------------------------
+   HELP
+   ------------------------------------------------------------- */
 function help() {
-    console.log(chalk.bold("\nDecode CLI — Commands\n"));
-    console.log(
-        "  decode init <cli-name>     Create your own CLI (powered by Decode)"
-    );
-    console.log("  decode -p pkg1 pkg2...     Install npm packages");
-    console.log("  decode -frontend           Create new Vite frontend");
-    console.log("  decode -backend [name]     Scaffold Express backend");
-    console.log(
-        "  decode -folders -mcrs      Create models/controllers/routes/services"
-    );
-    console.log("  decode -files f1 f2...     Create files");
-    console.log("  decode -run                Choose & run npm script");
-    console.log("  decode -go                 Run dev || start");
-    console.log("  decode -plugin name        Run plugin from ./plugins");
-    console.log("  decode -open               Open folder in VS Code");
-    console.log("  decode -term               Open terminal");
-    console.log("  decode -info               Show folder info");
-    console.log("  decode -dash               (future) local dashboard\n");
+    console.log(chalk.bold("\nDecode CLI v2.2.0 — Commands\n"));
+    const c = (cmd, desc) => console.log(`  ${chalk.cyan(cmd)} ${desc}`);
+
+    c("decode init <name>", "Create your own CLI");
+    c("decode -p pkg1 pkg2", "Install packages");
+    c("decode -frontend", "Vite project");
+    c("decode -backend [name]", "Express API");
+    c("decode -folders -mrcs", "MVC folders (default)");
+    c("decode -folders f1 f2", "Any custom folders");
+    c("decode -files f1 f2", "Create files");
+    c("decode -run", "Run npm script");
+    c("decode -go", "Run dev/start");
+    c("decode -plugin name", "Run ./plugins/name.js");
+    c("decode -open", "Open VS Code");
+    c("decode -term", "Open terminal");
+    c("decode -info", "List folder");
+    c("decode -git", "git init + .gitignore");
+    c("decode -env", "Create .env files");
+    c("decode -dash", "Dashboard (soon)");
+    c("decode -v", "Show version");
+    console.log();
 }
 
+/* -------------------------------------------------------------
+   CUSTOM CLI ENGINE (generated by `init`)
+   ------------------------------------------------------------- */
 function generateEngine(cliName) {
     return `#!/usr/bin/env node
+import chalk from "chalk";
 import { spawnSync } from "child_process";
 import fs from "fs";
-import path from "path";
-import inquirer from "inquirer";
-import chalk from "chalk";
-const CLI_NAME = "${cliName}";
+
+const CLI = "${cliName}";
 const args = process.argv.slice(2);
-const cwd = process.cwd();
-const log=(s)=>console.log(chalk.cyanBright(s));
-const warn=(s)=>console.log(chalk.yellow(s));
-const err=(s)=>console.log(chalk.red(s));
-function runSync(cmd,opts={}){const r=spawnSync(cmd,{stdio:"inherit",shell:true,...opts});if(r.error)throw r.error;}
-if(!args.length){console.log("Usage: "+CLI_NAME+" -p pkg1 pkg2 ...");process.exit(0);}
-const cmd=args[0];
-if(cmd===" -p"){const pkgs=args.slice(1).join(" ");log("📦 Installing "+pkgs);runSync("npm install "+pkgs);}
-else if(cmd==="-backend"){fs.mkdirSync("src",{recursive:true});fs.writeFileSync("src/server.js","console.log('🚀 Backend ready');");runSync("npm init -y");runSync("npm i express cors dotenv");}
-else if(cmd==="-frontend"){runSync("npm create vite@latest");}
-else if(cmd==="-files"){args.slice(1).forEach(f=>{fs.writeFileSync(f,"");log("📝 Created "+f);});}
-else if(cmd==="-info"){log("📂 "+cwd);fs.readdirSync(cwd).forEach(i=>console.log(" - "+i));}
-else{warn("Unknown command");}
+const log = (s) => console.log(chalk.cyan(s));
+const run = (cmd) => spawnSync(cmd, { stdio: "inherit", shell: true });
+
+if (!args.length) {
+  console.log("Usage: " + CLI + " -p pkg1 pkg2");
+  return;
+}
+
+const cmd = args[0];
+
+if (cmd === "-p") {
+  const pkgs = args.slice(1).join(" ");
+  log("Installing " + pkgs);
+  run("npm install " + pkgs);
+} else if (cmd === "-info") {
+  log("Current folder:");
+  fs.readdirSync(".").forEach(f => console.log("  - " + f));
+} else {
+  console.log(chalk.yellow("Unknown: " + cmd));
+}
 `;
 }
 
+/* -------------------------------------------------------------
+   START
+   ------------------------------------------------------------- */
 main();
