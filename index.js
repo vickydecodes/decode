@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Decode CLI v2.2.0 — Minimal + Smart CLI Generator
+ * Decode CLI v0.0.5 — Minimal + Smart CLI Generator
  *
  * Core: decode init <name> → your own global CLI
  * Smart -folders: -mrcs (default) OR any custom names
@@ -45,11 +45,12 @@ function runSync(cmd, opts = {}) {
    MAIN
    ------------------------------------------------------------- */
 async function main() {
-    console.log(
-        chalk.magentaBright.bold(
-            `\nDecode CLI v2.2.0 — Smart Dev CLI + Generator\n`
-        )
-    );
+    
+// Show banner only on the first command in a session
+if (!global.__DECODE_LOGGED__) {
+    console.log(chalk.magentaBright.bold(`\nDecode CLI v2.2.0 — Smart Dev CLI + Generator\n`));
+    global.__DECODE_LOGGED__ = true;
+}
 
     if (!args.length) return help();
 
