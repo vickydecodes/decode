@@ -14,7 +14,7 @@
 
 ---
 
-</div>
+
 
 <div align="center">
 
@@ -28,11 +28,11 @@
 Your terminal just got smarter.
 
 ---
-
-![npm](https://img.shields.io/npm/v/@vickydecodes/decode?color=%2300ff99\&style=for-the-badge)
+<div>
+![npm](https://img.shields.io/npm/v/@vickydecodes/decode?color=%2300ff99\style=for-the-badge)
 ![license](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
 ![node](https://img.shields.io/node/v/@vickydecodes/decode?style=for-the-badge)
-![maintained](https://img.shields.io/maintenance/yes/2025?color=brightgreen\&style=for-the-badge)
+![maintained](https://img.shields.io/maintenance/yes/2025?color=brightgreen\style=for-the-badge)
 
 </div>
 
